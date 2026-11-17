@@ -65,7 +65,7 @@ export function parse (text) {
   const named = t => sections.find(s => s.title === t)
   const menu = named(MENU) ? listed(named(MENU).text) : null
   const included = named(INCLUDED) ? listed(named(INCLUDED).text) : null
-  const table = menu ? [] : loose(text)
+  const table = menu ? [] : loose([summary, ...sections.filter(s => s.title !== INCLUDED).map(s => s.text)].join('\n\n'))
   const oneliner = firstSentence(firstProse(summary))
   return { title, oneliner, summary, sections: sections.filter(s => s.title !== MENU && s.title !== INCLUDED), menu, included, table, first: sections[0]?.title ?? null }
 }

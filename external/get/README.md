@@ -4,13 +4,14 @@ Answers a page of the mrepo's info by its keywords, with the keywords below it.
 
 ## Signature
 
-`get(exec, { args })`: requested as `info/get [<keywords>]`, at the
-mrepo itself.
+`get(exec, { uri, args })`: requested as `info/get [<keywords>]`, the
+keywords where the URI is, no dot.
 
 ## Arguments
 
-- `keywords`: a path from the top, `boot/deploy`, or its words,
-  `boot deploy`; none: the top.
+- `uri`: the keywords, a path from the top, `boot/deploy`; the prefix
+  `main` of a request from outside not among them; `.`: the top.
+- `args`: more keywords, as words, `boot deploy`.
 
 ## Returns
 

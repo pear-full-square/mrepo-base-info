@@ -1,5 +1,6 @@
 // get: info/get <keywords>, a page of the mrepo's info by its keywords,
 // from the top down (README.md beside it).
+import { segmented, joined } from 'mycelium-uri'
 import { LAYER, TOP, keyword, parse, MENU, INCLUDED } from '../../internal/info/index.js'
 
 // A page's text without its menus: what it says, its keywords listed apart.
@@ -16,9 +17,14 @@ const said = text => {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
-export async function get (exec, { args = [] }) {
-  // the keywords, as one path or several words; none: the top
-  const k = args.join('/').split('/').map(keyword).filter(Boolean).join('/') || TOP
+// The keywords asked: where the URI is, as typed (info/get boot/deploy, no
+// dot), then the arguments, as one path or several words; none, or the
+// position itself: the top. The prefix of a request from outside, main,
+// is not one.
+export async function get (exec, { uri = ['.'], args = [] }) {
+  const s = segmented(uri)
+  const at = joined(s[0] === 'main' && s.length > 1 ? s.slice(1) : s)
+  const k = [at === '.' ? '' : at, ...args].join('/').split('/').map(keyword).filter(Boolean).join('/') || TOP
   const bytes = await exec.find(`/${LAYER}/index.json`)
   if (bytes === null) throw new Error('no info extracted in this mrepo yet (info/extract)')
   const index = JSON.parse(bytes.toString())
