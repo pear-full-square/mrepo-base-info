@@ -23,7 +23,7 @@ function firstSentence (t) {
   return t
 }
 // The first paragraph that is prose: no table, no code, no list.
-const firstProse = text => (String(text).split(/\n\s*\n/).find(p => p.trim() && !/^\s*[|`<-]/.test(p)) ?? '').replace(/\s+/g, ' ').trim()
+const firstProse = text => (String(text).split(/\n\s*\n/).find(p => p.trim() && !/^\s*(\||```|<|[-*]\s)/.test(p)) ?? '').replace(/\s+/g, ' ').trim()
 
 // A word in its keyword form: lowercase, a hyphen between words, nothing
 // else ("A structure unit" a-structure-unit, `package.json` package-json).
@@ -100,9 +100,10 @@ const family = name => name.split('-').slice(0, name.startsWith('mrepo-') || nam
 // own last: each { pkg, files: { path: bytes } (its READMEs, its
 // package.json, its list, its third-party.json), paths: [its bundle's
 // files] }. -> the files to write, by path in the layer: each page once at
-// its source's place, the two pages made here, index.json (keyword ->
-// { page, section?, oneliner, below, generated? }), problems.json
-// ([{ keyword?, page?, check, detail }]).
+// its source's place, the two pages made here, index.json (keyword -> its
+// choices, one a page or a section that keyword reaches: [{ page,
+// section?, see?, oneliner, below, generated? }]), problems.json ([{
+// keyword?, page?, check, detail }]).
 export function extract (packages) {
   const out = {}
   const index = {}
@@ -132,12 +133,15 @@ export function extract (packages) {
     if (!checked.has(at)) { checked.add(at); for (const [c, d] of check(text)) problems.push({ page: at.slice(1).replace(/\/README\.md$/, ''), check: c, detail: d }) }
     return parse(text)
   }
-  const below = (k, child) => {
-    const e = index[k]
-    if (e.below.includes(child)) { problems.push({ keyword: k, check: 'keywords', detail: `${child.split('/').pop()} twice` }); return false }
-    e.below.push(child)
-    return true
+  // a choice at a keyword: one page, or one section of it, once
+  const choose = (k, c) => {
+    const all = index[k] ??= []
+    const same = all.find(x => x.page === c.page && x.section === c.section)
+    if (same) return null
+    all.push(c)
+    return c
   }
+  const below = (c, child) => { if (!c.below.includes(child)) c.below.push(child) }
   // a page at a keyword, and all below it: its menu (or its table, the old
   // form), its sections; a page above it not again. A link to a module's
   // top points to its one place (modules/<module>), not walked again; at
@@ -145,8 +149,8 @@ export function extract (packages) {
   const walk = (k, src, above = []) => {
     reached.add(`${src.p.pkg}:${src.path}`)
     const r = put(src)
-    index[k] = { page: src.at.slice(1), oneliner: r.oneliner, below: [] }
-    if (above.includes(src.at)) return
+    const c = choose(k, { page: src.at.slice(1), oneliner: r.oneliner, below: [] })
+    if (!c || above.includes(src.at)) return c
     const chain = [...above, src.at]
     for (const l of r.menu ?? r.table) {
       if (/^[a-z]+:/.test(l.target)) continue
@@ -156,22 +160,24 @@ export function extract (packages) {
       const label = keyword(l.label.replace(/\/$/, '').split('/').pop())
       if (k === TOP && GENERATED.includes(label)) { reached.add(`${src.p.pkg}:${readme}`); continue }
       const child = k === TOP ? label : `${k}/${label}`
-      if (!below(k, child)) continue
+      below(c, child)
       const m = moduleOf(readme)
-      if (m && m.rest === '/README.md') { reached.add(`${carrier[m.module].pkg}:${readme}`); index[child] = { page: `modules/${m.module}/README.md`, see: `modules/${m.module.split('/')[1]}`, oneliner: parse(src.p.files[readme].toString()).oneliner, below: [] }; continue }
+      if (m && m.rest === '/README.md') { reached.add(`${carrier[m.module].pkg}:${readme}`); choose(child, { page: `modules/${m.module}/README.md`, see: `modules/${m.module.split('/')[1]}`, oneliner: parse(src.p.files[readme].toString()).oneliner, below: [] }); continue }
       walk(child, placed(src.p, readme), chain)
     }
     for (const s of r.sections) {
       const child = k === TOP ? keyword(s.title) : `${k}/${keyword(s.title)}`
-      if (below(k, child)) index[child] = { page: src.at.slice(1), section: s.title, oneliner: firstSentence(firstProse(s.text)), below: [] }
+      below(c, child)
+      choose(child, { page: src.at.slice(1), section: s.title, oneliner: firstSentence(firstProse(s.text)), below: [] })
     }
+    return c
   }
   // a package's own: its README at its keyword; its included packages,
   // against its list
   const listOf = p => { const b = p.files['/mrepo/packages/layer.json']; if (!b) return null; try { return JSON.parse(b.toString()).packages ?? null } catch (err) { problems.push({ page: `packages/${p.pkg}/mrepo/packages/layer.json`, check: 'list', detail: err.message }); return null } }
   const top = p => {
     if (!p.files['/README.md']) { problems.push({ page: `packages/${p.pkg}`, check: 'readme', detail: 'none' }); return }
-    walk(TOP, { p, path: '/README.md', at: `/packages/${p.pkg}/README.md` })
+    const c = walk(TOP, { p, path: '/README.md', at: `/packages/${p.pkg}/README.md` })
     const r = parse(p.files['/README.md'].toString())
     const list = (listOf(p) ?? []).filter(x => x !== p.pkg)
     const named = (r.included ?? []).map(l => l.target.replace(/^\.\.\//, '').replace(/\/$/, ''))
@@ -183,23 +189,25 @@ export function extract (packages) {
       if (!q) { problems.push({ keyword: TOP, check: 'included', detail: `${name}: not in this mrepo` }); continue }
       const k = packageKeyword(q.pkg)
       if (!q.files['/README.md']) { problems.push({ keyword: k, check: 'readme', detail: `${q.pkg}: none` }); continue }
-      if (below(TOP, k)) walk(k, { p: q, path: '/README.md', at: `/packages/${q.pkg}/README.md` })
+      below(c, k)
+      walk(k, { p: q, path: '/README.md', at: `/packages/${q.pkg}/README.md` })
     }
   }
   if (own) top(own)
-  else index[TOP] = { page: null, oneliner: '', below: [] }
+  const head = index[TOP]?.[0] ?? null
   // modules: every module once, by its name, families as headings
   const modules = Object.keys(carrier).sort((a, b) => a.split('/')[1] < b.split('/')[1] ? -1 : 1)
   const families = [...new Set(modules.map(m => family(m.split('/')[1])))]
   out['/modules/README.md'] = Buffer.from(`# modules\n\nThe modules this mrepo's packages carry, each once.\n\nGenerated at extraction from the packages' bundles.\n\n## Links\n\n${families.map(f => `### ${f}\n\n${modules.filter(m => family(m.split('/')[1]) === f).map(m => `- [${m.split('/')[1]}](${m.split('/')[1]}/)`).join('\n')}\n`).join('\n')}`)
-  if (index[TOP]) {
-    below(TOP, 'modules')
-    index.modules = { page: 'modules/README.md', oneliner: 'The modules this mrepo\'s packages carry, each once.', below: [], generated: true }
+  if (head) {
+    below(head, 'modules')
+    const c = choose('modules', { page: 'modules/README.md', oneliner: 'The modules this mrepo\'s packages carry, each once.', below: [], generated: true })
     for (const m of modules) {
       const k = `modules/${m.split('/')[1]}`
       const path = `/modules/${m}/README.md`
       if (!carrier[m].files[path]) { problems.push({ keyword: k, check: 'readme', detail: 'none' }); continue }
-      if (below('modules', k)) walk(k, placed(carrier[m], path))
+      below(c, k)
+      walk(k, placed(carrier[m], path))
     }
   }
   // third-party: each module once, from the packages' third-party.json
@@ -218,13 +226,13 @@ export function extract (packages) {
   const rows = Object.values(third).sort((a, b) => a.name < b.name ? -1 : 1)
   for (const e of rows) if (e.versions.size > 1) problems.push({ keyword: 'third-party', check: 'third-party', detail: `${e.name}: ${[...e.versions].join(', ')}` })
   out['/third-party/README.md'] = Buffer.from(`# third-party\n\nThe third-party code in this mrepo's packages, each module once.\n\nGenerated at extraction from the packages' \`modules/third-party.json\`.\n\n## Modules\n\n| module | version | licence | carried by |\n|---|---|---|---|\n${rows.map(e => `| [${e.name}](${e.resolved ?? ''}) | ${[...e.versions].join(', ')} | ${e.license ?? ''} | ${e.packages.length} packages |`).join('\n')}\n`)
-  if (index[TOP]) {
-    below(TOP, 'third-party')
-    index['third-party'] = { page: 'third-party/README.md', oneliner: 'The third-party code in this mrepo\'s packages, each module once.', below: [], generated: true }
+  if (head) {
+    below(head, 'third-party')
+    choose('third-party', { page: 'third-party/README.md', oneliner: 'The third-party code in this mrepo\'s packages, each module once.', below: [], generated: true })
   }
   // every README of a package reached from the top, or from its module's
   for (const p of packages) {
-    if (!index[TOP] || (p !== own && !index[TOP].below.includes(packageKeyword(p.pkg)))) continue
+    if (!head || (p !== own && !head.below.includes(packageKeyword(p.pkg)))) continue
     for (const path of Object.keys(p.files)) {
       if (!path.endsWith('/README.md') || path.startsWith('/modules/node_modules/')) continue
       const m = moduleOf(path)
