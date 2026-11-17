@@ -139,15 +139,15 @@ test('the actions: extract writes the layer, get reads it by keywords', async (t
 
 // the template's bundle, as a runtime reads it
 const SOURCES = os.hasEnv('SOURCES') ? os.getEnv('SOURCES') : join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'sources')
-const TEMPLATE = join(SOURCES, 'haiccing', 'package-docs-package.bundle')
+const TEMPLATE = join(SOURCES, 'haiccing', 'base-docs-package.bundle')
 
 test('the template, extracted from its bundle: its keywords, nothing against its own rules', { skip: !existsSync(TEMPLATE) }, (t) => {
   const b = Bundle.from(readFileSync(TEMPLATE))
   const files = {}
   for (const k of Object.keys(b.files)) if (k.endsWith('/README.md') || k === '/package.json' || k === '/modules/third-party.json') files[k] = b.read(k)
-  const out = extract([{ pkg: 'haiccing/package-docs-package', files, paths: Object.keys(b.files) }])
+  const out = extract([{ pkg: 'haiccing/base-docs-package', files, paths: Object.keys(b.files) }])
   const index = J(out['/index.json'])
-  for (const k of ['mrepo', 'test', 'test/help', 'test-reports', 'name', 'example', 'example/hello', 'example/hello/notes/mrepo', 'readmes', 'a-new-package', 'modules', 'third-party']) t.ok(index[k], `${k}`)
+  for (const k of ['mrepo', 'test', 'test/info', 'test-reports', 'name', 'example', 'example/hello', 'example/hello/notes/mrepo', 'readmes', 'a-new-package', 'modules', 'third-party']) t.ok(index[k], `${k}`)
   const own = J(out['/problems.json']).filter(p => (p.page ?? '').startsWith('packages/'))
   for (const p of own) t.comment(`${p.page}: ${p.check}: ${p.detail}`)
   t.is(own.length, 0, 'its own pages: no problem (the modules it carries are theirs)')

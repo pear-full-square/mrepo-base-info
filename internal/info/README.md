@@ -8,7 +8,8 @@ Reads a README and its menus, checks it against the README rules, and makes an m
   table, first }`.
 - `check(text)`: `[[check, detail]...]`, the README rules and the menu's
   form.
-- `extract(packages)`: the files of the layer, by path.
+- `extract(packages, { alone })`: the files of the layer, by path;
+  `alone`, a package on its own, its included packages not there.
 - `keyword(words)`, `packageKeyword(pkg)`: a keyword's form.
 
 ## Arguments

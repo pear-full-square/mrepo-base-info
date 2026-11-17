@@ -29,17 +29,18 @@ const firstProse = text => (String(text).split(/\n\s*\n/).find(p => p.trim() && 
 // else ("A structure unit" a-structure-unit, `package.json` package-json).
 export const keyword = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 // An included package's keyword: its name without the prefix, the first
-// two words (base-package-boot boot, package-docs-mrepo mrepo).
+// two words (base-package-boot boot, base-docs-package package).
 export const packageKeyword = pkg => { const name = pkg.split('/').pop(); const w = name.split('-'); return w.length > 2 ? w.slice(2).join('-') : name }
 
 // The links of a list, in order: [{ label, target }].
 const listed = text => [...String(text).matchAll(/^\s*[-*]\s+\[([^\]]+)\]\(([^)\s]+)\)/gm)].map(m => ({ label: m[1], target: m[2] }))
 // The relative links of a README without a menu (the old form: a table,
-// a list in its summary), outside code blocks, in order.
+// a list in its summary) to what is below it, outside code blocks, in
+// order; a link up, to a sibling, is a reference.
 const loose = text => {
   let code = false
   const prose = String(text).split('\n').filter(l => { if (l.startsWith('```')) code = !code; return !code && !l.startsWith('```') }).join('\n')
-  return [...prose.matchAll(/\[([^\]]+)\]\(([^)\s#]+)\)/g)].map(m => ({ label: m[1].replace(/`/g, ''), target: m[2] })).filter(l => !/^[a-z]+:/.test(l.target) && /(\/|\.md)$/.test(l.target))
+  return [...prose.matchAll(/\[([^\]]+)\]\(([^)\s#]+)\)/g)].map(m => ({ label: m[1].replace(/`/g, ''), target: m[2] })).filter(l => !/^[a-z]+:/.test(l.target) && !l.target.startsWith('../') && /(\/|\.md)$/.test(l.target))
 }
 
 // A README read: its title, one-liner, summary, sections (in order, the
@@ -70,7 +71,7 @@ export function parse (text) {
   return { title, oneliner, summary, sections: sections.filter(s => s.title !== MENU && s.title !== INCLUDED), menu, included, table, first: sections[0]?.title ?? null }
 }
 
-// The rules on one README's text (haiccing/package-docs-package,
+// The rules on one README's text (haiccing/base-docs-package,
 // "READMEs"): [[check, detail]...]. Its shape, its length, its references,
 // its menu's form; where the menus point is the extraction's to check.
 export function check (text) {
@@ -104,7 +105,7 @@ const family = name => name.split('-').slice(0, name.startsWith('mrepo-') || nam
 // choices, one a page or a section that keyword reaches: [{ page,
 // section?, see?, oneliner, below, generated? }]), problems.json ([{
 // keyword?, page?, check, detail }]).
-export function extract (packages) {
+export function extract (packages, { alone = false } = {}) {
   const out = {}
   const index = {}
   const problems = []
@@ -186,7 +187,7 @@ export function extract (packages) {
     const included = r.included ? named : list.map(x => x.split('/').pop())
     for (const name of included) {
       const q = byName[name]
-      if (!q) { problems.push({ keyword: TOP, check: 'included', detail: `${name}: not in this mrepo` }); continue }
+      if (!q) { if (!alone) problems.push({ keyword: TOP, check: 'included', detail: `${name}: not in this mrepo` }); continue }
       const k = packageKeyword(q.pkg)
       if (!q.files['/README.md']) { problems.push({ keyword: k, check: 'readme', detail: `${q.pkg}: none` }); continue }
       below(c, k)
