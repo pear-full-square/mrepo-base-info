@@ -147,7 +147,7 @@ test('the template, extracted from its bundle: its keywords, nothing against its
   for (const k of Object.keys(b.files)) if (k.endsWith('/README.md') || k === '/package.json' || k === '/modules/third-party.json') files[k] = b.read(k)
   const out = extract([{ pkg: 'haiccing/base-docs-package', files, paths: Object.keys(b.files) }])
   const index = J(out['/index.json'])
-  for (const k of ['mrepo', 'test', 'test/help', 'test-reports', 'name', 'example', 'example/hello', 'example/hello/notes/mrepo', 'readmes', 'a-new-package', 'modules', 'third-party']) t.ok(index[k], `${k}`)
+  for (const k of ['mrepo', 'test', 'test/info', 'test-reports', 'name', 'example', 'example/hello', 'example/hello/notes/mrepo', 'readmes', 'a-new-package', 'modules', 'third-party']) t.ok(index[k], `${k}`)
   const own = J(out['/problems.json']).filter(p => (p.page ?? '').startsWith('packages/'))
   for (const p of own) t.comment(`${p.page}: ${p.check}: ${p.detail}`)
   t.is(own.length, 0, 'its own pages: no problem (the modules it carries are theirs)')
