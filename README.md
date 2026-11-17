@@ -12,6 +12,7 @@ page and the keywords below it. Offered by `haiccing/base-package-info`.
 - [external](external/)
 - [internal](internal/)
 - [test](test/)
+- [validate](validate/)
 
 ## Commands
 
