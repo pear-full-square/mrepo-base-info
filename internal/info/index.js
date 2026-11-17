@@ -29,7 +29,7 @@ const firstProse = text => (String(text).split(/\n\s*\n/).find(p => p.trim() && 
 // else ("A structure unit" a-structure-unit, `package.json` package-json).
 export const keyword = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 // An included package's keyword: its name without the prefix, the first
-// two words (base-package-boot boot, package-docs-mrepo mrepo).
+// two words (base-package-boot boot, base-docs-package package).
 export const packageKeyword = pkg => { const name = pkg.split('/').pop(); const w = name.split('-'); return w.length > 2 ? w.slice(2).join('-') : name }
 
 // The links of a list, in order: [{ label, target }].
@@ -70,7 +70,7 @@ export function parse (text) {
   return { title, oneliner, summary, sections: sections.filter(s => s.title !== MENU && s.title !== INCLUDED), menu, included, table, first: sections[0]?.title ?? null }
 }
 
-// The rules on one README's text (haiccing/package-docs-package,
+// The rules on one README's text (haiccing/base-docs-package,
 // "READMEs"): [[check, detail]...]. Its shape, its length, its references,
 // its menu's form; where the menus point is the extraction's to check.
 export function check (text) {
