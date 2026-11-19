@@ -32,7 +32,9 @@ test('the rules: the README rules, and the menu\'s form', (t) => {
   t.alike(check('# late\n\nLate.\n\n## Usage\n\nU.\n\n## Links\n\n- [sub](sub/)\n'), [['menu', '## Links is not its first section']])
   t.alike(check('# none\n\n'), [['oneliner', 'none']])
   const dev = ['dev', 'env', '3', 'y'].join('-') // (written so, or this file's own check would find it)
-  t.alike(check(`# linked\n\nLinked.\n\nWritten from [x/${dev}](https://github.com/x/${dev}).\n`), [['transient', dev]], 'a link to a development repository: transient')
+  t.alike(check(`# linked\n\nLinked.\n\nWritten from [x/${dev}](https://github.com/x/${dev}).\n`), [['transient', dev]], 'a link to where it was made: transient')
+  const words = ['Development', 'repository'].join(' ') // (written so, or this file's own check would find it)
+  t.alike(check(`# said\n\nSaid.\n\nBuilt in the ${words}.\n`), [['transient', words]], 'a mention of where it was made, in words: transient')
 })
 
 test('keywords: a word, a section\'s title, an included package by its name without the prefix', (t) => {
@@ -143,10 +145,24 @@ test('the actions: extract writes the layer, get reads it by keywords', async (t
     t.absent(top.choices[0].page.includes('## Links'), 'the page without its menus: they are its keywords')
     const run = await get(exec, { args: ['x/run'] })
     t.alike([run.choices[0].title, run.choices[0].oneliner, run.choices[0].below], ['run', 'Runs x.', [{ keyword: 'x/run/signature', oneliner: '`run(exec, form)`.', choices: 1 }]], 'an action: its page, its sections below')
-    t.alike((await get(exec, { args: ['x', 'run', 'signature'] })).choices[0], { title: 'Signature', oneliner: '`run(exec, form)`.', page: '`run(exec, form)`.', below: [] }, 'a section, the keywords as words')
+    t.alike((await get(exec, { args: ['x', 'run', 'signature'] })).choices[0], { title: 'Signature', oneliner: '`run(exec, form)`.', page: '`run(exec, form)`.', below: [], packages: [] }, 'a section, the keywords as words')
     t.is((await get(exec, { args: ['mrepo'] })).choices.length, 2, 'a keyword with two meanings: both choices')
+    t.alike((await get(exec, { args: ['x'] })).choices[0].packages, ['org/base-package-x'], 'each choice: the package it is from')
     await t.exception(get(exec, { args: ['x/nothing'] }), /no x\/nothing here: nearest x, below it run, howto, test, modules, config/, 'a keyword that is not there: the nearest, and what is below it')
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('get: the same page in several packages one choice, its packages all named; pages that differ apart', async (t) => {
+  const generic = '# test-reports/\n\nThe proof.\n'
+  const files = {
+    '/info/index.json': B(JSON.stringify({ 'z/test-reports': [{ page: 'packages/org/a/test-reports/README.md', oneliner: 'The proof.', below: [] }, { page: 'packages/org/b/test-reports/README.md', oneliner: 'The proof.', below: [] }, { page: 'packages/org/c/test-reports/README.md', oneliner: 'Its own.', below: [] }] })),
+    '/info/packages/org/a/test-reports/README.md': B(generic),
+    '/info/packages/org/b/test-reports/README.md': B(generic),
+    '/info/packages/org/c/test-reports/README.md': B('# test-reports/\n\nIts own.\n')
+  }
+  const exec = { read: async p => { if (!(p in files)) throw new Error(`nothing at ${p}`); return files[p] }, find: async p => files[p] ?? null, log () {} }
+  const r = await get(exec, { args: ['z', 'test-reports'] })
+  t.alike(r.choices.map(c => [c.oneliner, c.packages]), [['The proof.', ['org/a', 'org/b']], ['Its own.', ['org/c']]], 'the same page once, both packages named; the one that differs apart')
 })
 
 // the template's bundle, as a runtime reads it
