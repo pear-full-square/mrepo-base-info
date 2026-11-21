@@ -59,8 +59,8 @@ const protocol = {
     [`${MOD}/external/README.md`]: B(page('external/', 'Its actions.', [['run', 'run/']])),
     [`${MOD}/external/run/README.md`]: B(page('run', 'Runs x.', [], '\n## Signature\n\n`run(exec, form)`.\n')),
     '/modules/third-party.json': B(JSON.stringify({ modules: [{ name: 'brittle', version: '3.0.0', license: 'Apache-2.0' }] })),
-    '/schemas/answer.json': B(JSON.stringify({ type: 'record', name: 'org.basePackageX.Answer', fields: [{ name: 'said', type: 'string' }] })),
-    [`${MOD}/schemas/thing.json`]: B(JSON.stringify({ type: 'record', name: 'org.modBaseX.Thing', fields: [{ name: 'n', type: 'long' }, { name: 'j', type: 'pearFullSquare.myceliumValueAvro.Json' }] }))
+    '/schemas/answer.json': B(JSON.stringify({ type: 'record', name: 'org.basePackageX.answer', fields: [{ name: 'said', type: 'string' }] })),
+    [`${MOD}/schemas/thing.json`]: B(JSON.stringify({ type: 'record', name: 'org.modBaseX.thing', fields: [{ name: 'n', type: 'long' }, { name: 'j', type: 'pearFullSquare.myceliumValueAvro.json' }] }))
   }
 }
 const docs = { pkg: 'org/package-docs-mrepo', files: { '/README.md': B(page('package-docs-mrepo', 'The mrepo, documented.')), '/lost/README.md': B(page('lost', 'No menu leads here.')) } }
