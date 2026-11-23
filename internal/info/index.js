@@ -114,11 +114,17 @@ const family = name => name.split('-').slice(0, name.startsWith('mrepo-') || nam
 // own last: each { pkg, files: { path: bytes } (its READMEs, its
 // package.json, its list, its third-party.json), paths: [its bundle's
 // files], documented?: true when it is documented only, beyond the
-// list (documents: sources) }. -> the files to write, by path in the layer: each page once at
-// its source's place, the two pages made here, index.json (keyword -> its
-// choices, one a page or a section that keyword reaches: [{ page,
-// section?, see?, oneliner, below, generated? }]), problems.json ([{
-// keyword?, page?, check, detail }]).
+// list (documents) }. -> the files to write, by path in the layer: each
+// page once at its source's place, the pages made here; split on
+// package: each package's index beside its pages,
+// packages/<org>/<package>/index.json (its short keyword -> its choices,
+// one a page or a section that keyword reaches: [{ page, section?, see?,
+// oneliner, below, generated? }]; '.' its README), the mrepo's own
+// keywords in index.json (the top, the organisations, modules,
+// third-party, schemas), keywords.json (a short keyword -> the packages
+// that have it), packages.json (each package, the contexts: { oneliner,
+// own?, documented? }), problems.json ([{ keyword?, page?, check, detail
+// }]).
 export function extract (packages, { alone = false } = {}) {
   const out = {}
   // (the schemas read, in memory: what each is)
@@ -302,8 +308,49 @@ export function extract (packages, { alone = false } = {}) {
       if (!reached.has(key)) problems.push({ page: (m ? `modules/${m.module}${m.rest}` : `packages/${p.pkg}${path}`).replace(/\/README\.md$/, ''), check: 'reached', detail: 'no menu leads to it' })
     }
   }
+  // Split on package: each package's keywords its own, in its own index
+  // beside its pages, by its short keywords ('.' its README); the
+  // mrepo's (the top, the organisations, what is made here) in
+  // index.json; which packages have a short keyword, keywords.json; the
+  // packages, the contexts, packages.json.
+  const mine = {}
+  const keywords = {}
+  for (const q of packages.filter(q => listed.has(q.pkg))) {
+    const K = packageKey(q.pkg)
+    const rel = k => (k === K ? TOP : k.slice(K.length + 1))
+    const idx = {}
+    for (const [k, choices] of Object.entries(index)) {
+      if (k !== K && !k.startsWith(`${K}/`)) continue
+      idx[rel(k)] = choices.map(c => ({ ...c, below: c.below.map(rel) }))
+      delete index[k]
+      if (k !== K) (keywords[rel(k)] ??= []).push(q.pkg)
+    }
+    out[`/packages/${q.pkg}/index.json`] = Buffer.from(JSON.stringify(idx, null, 2) + '\n')
+    mine[q.pkg] = { oneliner: idx[TOP]?.[0]?.oneliner ?? '', ...(q === own ? { own: true } : {}), ...(q.documented ? { documented: true } : {}) }
+  }
+  out['/packages.json'] = Buffer.from(JSON.stringify(mine, null, 2) + '\n')
+  out['/keywords.json'] = Buffer.from(JSON.stringify(keywords, null, 2) + '\n')
   out['/index.json'] = Buffer.from(JSON.stringify(index, null, 2) + '\n')
   const seen = new Set()
   out['/problems.json'] = Buffer.from(JSON.stringify(problems.filter(x => { const s = JSON.stringify(x); return !seen.has(s) && seen.add(s) }), null, 2) + '\n')
+  return out
+}
+
+// What an extraction wrote in the info layer, as its documents name it:
+// the pages its indexes name, each package's index, the documents made
+// here; by path in the layer. (The layer's own config not among them.)
+// log: none (reads only; the action that uses it says what it did)
+export async function built (exec) {
+  const json = async p => { const b = await exec.find(`/${LAYER}${p}`); return b === null ? null : JSON.parse(b.toString()) }
+  const out = new Set()
+  const named = idx => { for (const c of Object.values(idx ?? {}).flat()) out.add(`/${c.page}`) }
+  const top = await json('/index.json')
+  if (top === null) return out
+  named(top)
+  for (const f of ['/index.json', '/packages.json', '/keywords.json', '/problems.json']) if (await exec.find(`/${LAYER}${f}`) !== null) out.add(f)
+  for (const pkg of Object.keys((await json('/packages.json')) ?? {})) {
+    out.add(`/packages/${pkg}/index.json`)
+    named(await json(`/packages/${pkg}/index.json`))
+  }
   return out
 }
