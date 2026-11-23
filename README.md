@@ -18,28 +18,36 @@ page and the keywords below it. Offered by `haiccing/base-package-info`.
 
 ```
 haicc host info/get
-haicc host info/get boot
-haicc host info/get boot/deploy
+haicc host info/get haiccing
+haicc host info/get haiccing/base-package-boot
+haicc host info/get haiccing/base-package-boot/deploy
+haicc host info/get haiccing base-package-boot deploy
 haicc host info/extract
 ```
 
 ## Keywords
 
+- **In full form**: the top is the mrepo's own package's README; below
+  it each organisation (`haiccing`), and below that each package by its
+  name fully qualified, `<org>/<package>` (`haiccing/base-package-boot`),
+  as a package is always named: every package alike, the mrepo's own
+  too, no two the same. One rule, every organisation alike.
 - **From the menus**: a README's `## Links`, a label each, is what is
   below it; a link may jump over folders (a package to its module's
   action). A README without one (the old form): the links of its text,
   each a problem.
 - **The included packages**: a package that defines an mrepo lists them
-  under `## Included packages`, each by its name without the prefix
-  (`base-package-boot`, `boot`). None: taken from its list, a problem.
+  under `## Included packages`, each by its name without the prefix.
+  None: taken from its list, a problem.
 - **The sections**: each a keyword below its page.
 - **Several meanings**: a keyword may reach more than one page; `get`
   answers each, a choice.
-- **Made here**: `modules`, every module once, by its full name;
-  `third-party`, from the packages' `third-party.json`; `schemas`, every
-  schema the packages carry once (their `schemas/`, their modules'), by
-  its URI, its fingerprint and its fields: what a binary record's
-  fingerprint names (`crud/read` decodes one).
+- **Made here**: each organisation's page, its packages; `modules`,
+  every module once, by its full name; `third-party`, from the packages'
+  `third-party.json`; `schemas`, every schema the packages carry once
+  (their `schemas/`, their modules'), by its URI, its fingerprint and its
+  fields: what a binary record's fingerprint names (`crud/read` decodes
+  one).
 
 ## Rules
 

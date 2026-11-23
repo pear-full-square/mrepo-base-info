@@ -32,6 +32,10 @@ export const keyword = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').
 // An included package's keyword: its name without the prefix, the first
 // two words (base-package-boot boot, base-docs-package package).
 export const packageKeyword = pkg => { const name = pkg.split('/').pop(); const w = name.split('-'); return w.length > 2 ? w.slice(2).join('-') : name }
+// A package's keywords in full form: its name fully qualified,
+// <org>/<package> (haiccing/base-package-boot), as a package is always
+// named: every package alike, the mrepo's own too; no two the same.
+export const packageKey = pkg => pkg
 
 // The links of a list, in order: [{ label, target }].
 const listed = text => [...String(text).matchAll(/^\s*[-*]\s+\[([^\]]+)\]\(([^)\s]+)\)/gm)].map(m => ({ label: m[1], target: m[2] }))
@@ -189,10 +193,33 @@ export function extract (packages, { alone = false } = {}) {
   // a package's own: its README at its keyword; its included packages,
   // against its list
   const listOf = p => { const b = p.files['/mrepo/packages/layer.json']; if (!b) return null; try { return JSON.parse(b.toString()).packages ?? null } catch (err) { problems.push({ page: `packages/${p.pkg}/mrepo/packages/layer.json`, check: 'list', detail: err.message }); return null } }
+  // the organisations, each a node below the top: its packages below it,
+  // by their keywords, in the order they were listed
+  const orgs = {}
+  const listed = new Set()
+  const under = q => {
+    const k = packageKey(q.pkg)
+    if (!q.files['/README.md']) { problems.push({ keyword: k, check: 'readme', detail: `${q.pkg}: none` }); return }
+    const org = q.pkg.split('/')[0]
+    if (!orgs[org]) {
+      orgs[org] = []
+      below(index[TOP][0], org)
+      choose(org, { page: `packages/${org}/README.md`, oneliner: `The ${org} packages of this mrepo, each by its name.`, below: [], generated: true })
+    }
+    if (listed.has(q.pkg)) return
+    listed.add(q.pkg)
+    orgs[org].push(q)
+    below(index[org][0], k)
+    walk(k, { p: q, path: '/README.md', at: `/packages/${q.pkg}/README.md` })
+  }
+  // the top: the mrepo's own package's README, the page; below it the
+  // organisations (its own package there too, at its full keyword) and
+  // what is made here
   const top = p => {
     if (!p.files['/README.md']) { problems.push({ page: `packages/${p.pkg}`, check: 'readme', detail: 'none' }); return }
-    const c = walk(TOP, { p, path: '/README.md', at: `/packages/${p.pkg}/README.md` })
-    const r = parse(p.files['/README.md'].toString())
+    const r = put({ p, path: '/README.md', at: `/packages/${p.pkg}/README.md` })
+    choose(TOP, { page: `packages/${p.pkg}/README.md`, oneliner: r.oneliner, below: [] })
+    under(p)
     const list = (listOf(p) ?? []).filter(x => x !== p.pkg)
     const named = (r.included ?? []).map(l => l.target.replace(/^\.\.\//, '').replace(/\/$/, ''))
     if (list.length && !r.included) problems.push({ keyword: TOP, check: 'included', detail: `no ## ${INCLUDED}: its list's ${list.length} packages taken from the list` })
@@ -201,24 +228,13 @@ export function extract (packages, { alone = false } = {}) {
     for (const name of included) {
       const q = byName[name]
       if (!q) { if (!alone) problems.push({ keyword: TOP, check: 'included', detail: `${name}: not in this mrepo` }); continue }
-      const k = packageKeyword(q.pkg)
-      if (!q.files['/README.md']) { problems.push({ keyword: k, check: 'readme', detail: `${q.pkg}: none` }); continue }
-      below(c, k)
-      walk(k, { p: q, path: '/README.md', at: `/packages/${q.pkg}/README.md` })
+      under(q)
     }
   }
   if (own) top(own)
-  // documented beyond its list (documents: sources): each at its keyword
-  // below the top, as an included package is
-  const first = index[TOP]?.[0]
-  if (first) {
-    for (const q of packages.filter(x => x.documented && x !== own)) {
-      const k = packageKeyword(q.pkg)
-      if (!q.files['/README.md']) { problems.push({ keyword: k, check: 'readme', detail: `${q.pkg}: none` }); continue }
-      below(first, k)
-      walk(k, { p: q, path: '/README.md', at: `/packages/${q.pkg}/README.md` })
-    }
-  }
+  // documented beyond its list: each below its organisation, as an
+  // included package is
+  if (index[TOP]?.[0]) for (const q of packages.filter(x => x.documented && x !== own)) under(q)
   const head = index[TOP]?.[0] ?? null
   // modules: every module once, by its name, families as headings
   const modules = Object.keys(carrier).sort((a, b) => a.split('/')[1] < b.split('/')[1] ? -1 : 1)
@@ -274,9 +290,11 @@ export function extract (packages, { alone = false } = {}) {
     below(head, 'schemas')
     choose('schemas', { page: 'schemas/README.md', oneliner: 'The schemas this mrepo\'s packages carry, each once, by its URI and its fingerprint.', below: [], generated: true })
   }
+  // each organisation's page: its packages, by their keywords
+  for (const [org, qs] of Object.entries(orgs)) out[`/packages/${org}/README.md`] = Buffer.from(`# ${org}\n\nThe ${org} packages of this mrepo, each by its name.\n\nGenerated at extraction: \`info/get ${org}/<package>\`.\n\n## Links\n\n${qs.map(q => `- [${q.pkg.split('/')[1]}](${q.pkg.split('/')[1]}/)`).join('\n')}\n`)
   // every README of a package reached from the top, or from its module's
   for (const p of packages) {
-    if (!head || (p !== own && !head.below.includes(packageKeyword(p.pkg)))) continue
+    if (!head || !listed.has(p.pkg)) continue
     for (const path of Object.keys(p.files)) {
       if (!path.endsWith('/README.md') || path.startsWith('/modules/node_modules/')) continue
       const m = moduleOf(path)

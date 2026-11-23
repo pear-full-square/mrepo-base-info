@@ -5,4 +5,4 @@
 //   validate/   the tests every package carrying it runs on itself
 export { get } from './external/get/index.js'
 export { extractAction } from './external/extract/index.js'
-export { parse, check, extract, keyword, packageKeyword, LAYER, TOP, MENU, INCLUDED, GENERATED } from './internal/info/index.js'
+export { parse, check, extract, keyword, packageKeyword, packageKey, LAYER, TOP, MENU, INCLUDED, GENERATED } from './internal/info/index.js'

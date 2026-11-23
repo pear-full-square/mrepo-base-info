@@ -9,9 +9,9 @@ keywords where the URI is, no dot.
 
 ## Arguments
 
-- `uri`: the keywords, a path from the top, `boot/deploy`; the prefix
+- `uri`: the keywords, a path from the top, `haiccing/base-package-boot/deploy`; the prefix
   `main` of a request from outside not among them; `.`: the top.
-- `args`: more keywords, as words, `boot deploy`.
+- `args`: more keywords, as words, `haiccing base-package-boot deploy`.
 
 ## Returns
 
