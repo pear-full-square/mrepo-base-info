@@ -24,7 +24,7 @@ test('its info: every page reached by its menus, none against the rules', (t) =>
   const paths = files(root)
   const wanted = Object.fromEntries(paths.filter(WANTED).map(p => [p, readFileSync(join(root, p))]))
   // its organisation: as its own list names it, last (a list ends with its own package); haiccing's else
-  const list = wanted['/mrepo/packages/layer.json'] ? JSON.parse(wanted['/mrepo/packages/layer.json'].toString()).packages ?? [] : []
+  const list = wanted['/mrepo/packages/.layer.json'] ? JSON.parse(wanted['/mrepo/packages/.layer.json'].toString()).packages ?? [] : []
   const pkg = list.find(x => x.split('/').pop() === pj.name) ?? `haiccing/${pj.name}`
   const out = extract([{ pkg, files: wanted, paths }], { alone: true })
   const index = JSON.parse(out['/index.json'].toString())
